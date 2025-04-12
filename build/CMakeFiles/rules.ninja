@@ -1760,7 +1760,7 @@ rule C_STATIC_LIBRARY_LINKER____idf_main_
 # Rule for re-running cmake.
 
 rule RERUN_CMAKE
-  command = C:\Espressif\tools\cmake\3.24.0\bin\cmake.exe --regenerate-during-build -SC:\Users\jonat\OneDrive\Escritorio\cronometro1erEntrega -BC:\Users\jonat\OneDrive\Escritorio\cronometro1erEntrega\build
+  command = C:\Espressif\tools\cmake\3.24.0\bin\cmake.exe --regenerate-during-build -S"C:\Sistemas embebidos\Cursos\Sistemas operativos de tiempo real\cronometro1erEntrega" -B"C:\Sistemas embebidos\Cursos\Sistemas operativos de tiempo real\cronometro1erEntrega\build"
   description = Re-running CMake...
   generator = 1
 

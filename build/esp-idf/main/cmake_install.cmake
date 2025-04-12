@@ -1,4 +1,4 @@
-# Install script for directory: C:/Users/jonat/OneDrive/Escritorio/cronometro1erEntrega/main
+# Install script for directory: C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/main
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

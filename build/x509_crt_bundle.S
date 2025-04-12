@@ -1,4 +1,4 @@
-/* * Data converted from C:/Users/jonat/OneDrive/Escritorio/cronometro1erEntrega/build/esp-idf/mbedtls/x509_crt_bundle
+/* * Data converted from C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/build/esp-idf/mbedtls/x509_crt_bundle
  */
 .data
 #if !defined (__APPLE__) && !defined (__linux__)

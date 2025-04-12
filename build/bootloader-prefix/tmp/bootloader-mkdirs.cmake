@@ -5,18 +5,18 @@ cmake_minimum_required(VERSION 3.5)
 
 file(MAKE_DIRECTORY
   "C:/Espressif/frameworks/esp-idf-v5.3.1/components/bootloader/subproject"
-  "C:/Users/jonat/OneDrive/Escritorio/cronometro1erEntrega/build/bootloader"
-  "C:/Users/jonat/OneDrive/Escritorio/cronometro1erEntrega/build/bootloader-prefix"
-  "C:/Users/jonat/OneDrive/Escritorio/cronometro1erEntrega/build/bootloader-prefix/tmp"
-  "C:/Users/jonat/OneDrive/Escritorio/cronometro1erEntrega/build/bootloader-prefix/src/bootloader-stamp"
-  "C:/Users/jonat/OneDrive/Escritorio/cronometro1erEntrega/build/bootloader-prefix/src"
-  "C:/Users/jonat/OneDrive/Escritorio/cronometro1erEntrega/build/bootloader-prefix/src/bootloader-stamp"
+  "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/build/bootloader"
+  "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/build/bootloader-prefix"
+  "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/build/bootloader-prefix/tmp"
+  "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/build/bootloader-prefix/src/bootloader-stamp"
+  "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/build/bootloader-prefix/src"
+  "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/build/bootloader-prefix/src/bootloader-stamp"
 )
 
 set(configSubDirs )
 foreach(subDir IN LISTS configSubDirs)
-    file(MAKE_DIRECTORY "C:/Users/jonat/OneDrive/Escritorio/cronometro1erEntrega/build/bootloader-prefix/src/bootloader-stamp/${subDir}")
+    file(MAKE_DIRECTORY "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/build/bootloader-prefix/src/bootloader-stamp/${subDir}")
 endforeach()
 if(cfgdir)
-  file(MAKE_DIRECTORY "C:/Users/jonat/OneDrive/Escritorio/cronometro1erEntrega/build/bootloader-prefix/src/bootloader-stamp${cfgdir}") # cfgdir has leading slash
+  file(MAKE_DIRECTORY "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/build/bootloader-prefix/src/bootloader-stamp${cfgdir}") # cfgdir has leading slash
 endif()

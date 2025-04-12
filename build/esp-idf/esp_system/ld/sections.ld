@@ -1,6 +1,6 @@
 /* Automatically generated file; DO NOT EDIT */
 /* Espressif IoT Development Framework Linker Script */
-/* Generated from: C:\Users\jonat\OneDrive\Escritorio\cronometro1erEntrega\build\esp-idf\esp_system\ld\sections.ld.in */
+/* Generated from: C:\Sistemas embebidos\Cursos\Sistemas operativos de tiempo real\cronometro1erEntrega\build\esp-idf\esp_system\ld\sections.ld.in */
 
 /*
 
