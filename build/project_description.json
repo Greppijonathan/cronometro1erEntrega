@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "cronometro1erEntrega",
-    "project_version":    "fb18033-dirty",
+    "project_version":    "907baa9-dirty",
     "project_path":       "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega",
     "idf_path":           "C:/Espressif/frameworks/esp-idf-v5.3.1",
     "build_dir":          "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/build",
@@ -1180,7 +1180,7 @@
             "managed_reqs": [],
             "managed_priv_reqs": [],
             "file": "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/build/esp-idf/main/libmain.a",
-            "sources": [ "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/main/main.c", "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/main/ili9341.c", "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/main/fonts.c", "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/main/digitos.c" ],
+            "sources": [ "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/main/teclas.c", "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/main/leds.c", "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/main/cronometro.c", "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/main/main.c", "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/main/ili9341.c", "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/main/fonts.c", "C:/Sistemas embebidos/Cursos/Sistemas operativos de tiempo real/cronometro1erEntrega/main/digitos.c" ],
             "include_dirs": [ "." ]
         },
         "mbedtls": {
