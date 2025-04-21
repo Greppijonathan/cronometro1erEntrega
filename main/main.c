@@ -120,10 +120,13 @@ void actualizarPantalla(void *p)
     TickType_t xLastWakeTime = xTaskGetTickCount();
     ILI9341Init();
     ILI9341Rotate(ILI9341_Landscape_1);
-
-    panel_t PanelMinutosSegundos = CrearPanel(30, 15, 4, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
-    panel_t PanelDecimas = CrearPanel(240, 15, 1, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
-
+    ILI9341DrawString(90, 0, "M M : S S : D", &font_11x18, ILI9341_RED, ILI9341_BLACK);
+    ILI9341DrawString(0, 130, "----------PARCIALES---------", &font_11x18, ILI9341_RED, ILI9341_BLACK);
+    panel_t PanelMinutosSegundos = CrearPanel(30, 30, 4, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
+    panel_t PanelDecimas = CrearPanel(240, 30, 1, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
+    // panel_t PanelMinutos = CrearPanel(30, 30, 2, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
+    // panel_t PanelSegundos = CrearPanel(120, 30, 2, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
+    // panel_t PanelDecimas = CrearPanel(240, 30, 1, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
     digitos_t digitosPrevios = {-1, -1, -1, -1, -1};
 
     DibujarDigito(PanelMinutosSegundos, 0, 0);
