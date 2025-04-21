@@ -2,7 +2,6 @@
 #define CRONOMETRO_H
 
 #include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
 
 typedef struct
 {
@@ -11,12 +10,10 @@ typedef struct
     int decenasSegundos;
     int unidadesSegundos;
     int decimasSegundo;
-} DigitosCronometro;
+} digitos_t;
 
-extern DigitosCronometro digitosActuales;
-extern SemaphoreHandle_t semaforoAccesoDigitos;
+extern digitos_t digitosActuales;
 
-void ActualizarDigitos(void);
-void ReiniciarCronometro(void);
+void ActualizarCronometro(void);
 
 #endif // CRONOMETRO_H

@@ -13,5 +13,8 @@
         "ESP_ROM_ELF_DIR": "C:\\Espressif\\tools\\esp-rom-elfs\\20241011/",
         "IDF_TARGET": "esp32c6"
     },
-    "idf.flashType": "UART"
+    "idf.flashType": "UART",
+    "files.associations": {
+        "teclasconfig.h": "c"
+    }
 }

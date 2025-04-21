@@ -1,173 +1,152 @@
-
 /*
 
 */
+#include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 #include "freertos/semphr.h"
+#include "driver/gpio.h"
 #include "ili9341.h"
 #include "digitos.h"
-#include "stdio.h"
-#include "driver/gpio.h"
-#include "cronometro.h"
+#include "teclasconfig.h"
 #include "leds.h"
-#include "teclas.h"
+#include "cronometro.h"
 
-// Definiciones generales
 #define DIGITO_ANCHO 50
 #define DIGITO_ALTO 90
 #define DIGITO_ENCENDIDO ILI9341_RED
 #define DIGITO_APAGADO 0x3800
 #define DIGITO_FONDO ILI9341_BLACK
 
-#define RGB_ROJO GPIO_NUM_1
-#define RGB_VERDE GPIO_NUM_8
-#define RGB_AZUL GPIO_NUM_10
-#define LED_OFF 0
+QueueHandle_t colaDigitos;
+QueueHandle_t colaEventosEstadoCronometro;
+SemaphoreHandle_t semaforoAccesoDigitos;
 
-#define TEC1_Pausa GPIO_NUM_4
-#define TEC2_Reiniciar GPIO_NUM_6
+bool enPausa = true;
 
-// Estados del cronómetro
 typedef enum
 {
-    ESTADO_CORRIENDO,
-    ESTADO_PAUSADO,
-    ESTADO_REINICIAR
-} EstadoCronometro;
+    PAUSAR,
+    REINICIAR
+} estadosCronometro_t;
 
-volatile EstadoCronometro estadoActual = ESTADO_PAUSADO; // Se inicializa en pausa por defecto
-
-// SemaphoreHandle_t semaforoAccesoDigitos;
-
-/*****************************************CODIGO PARA LAS TAREAS*****************************************/
-
-void ManejarEstadoCronometro(void *parametros)
+void leerBotones(void *p)
 {
-    TickType_t xLastWakeTime = xTaskGetTickCount();
-    bool estadoLed = true;
+    ConfigurarTeclas();
+    bool estadoanteriorPausa = true;
+    bool estadoanteriorReiniciar = true;
+
     while (1)
     {
-        switch (estadoActual)
+        if ((gpio_get_level(TEC1_Pausa) == 0) && estadoanteriorPausa)
         {
-        case ESTADO_CORRIENDO:
-            ActualizarDigitos();
-            PrenderLedVerde(estadoLed);
-            break;
-
-        case ESTADO_PAUSADO:
-            PrenderLedRojo(estadoLed);
-            break;
-
-        case ESTADO_REINICIAR:
-            PrenderLedRojo(estadoLed);
-            ReiniciarCronometro();
-            estadoActual = ESTADO_PAUSADO; // Luego de un reinicio se deja por defecto el creonometro pausado
-            break;
+            estadosCronometro_t evento = PAUSAR;
+            xQueueSend(colaEventosEstadoCronometro, &evento, portMAX_DELAY);
+            estadoanteriorPausa = false;
+            vTaskDelay(pdMS_TO_TICKS(100));
         }
-        estadoLed = !estadoLed;
+        else if (gpio_get_level(TEC1_Pausa) != 0)
+        {
+            estadoanteriorPausa = true;
+        }
+
+        if ((gpio_get_level(TEC2_Reiniciar) == 0) && estadoanteriorReiniciar)
+        {
+            estadosCronometro_t evento = REINICIAR;
+            xQueueSend(colaEventosEstadoCronometro, &evento, portMAX_DELAY);
+            estadoanteriorReiniciar = false;
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+        else if (gpio_get_level(TEC2_Reiniciar) != 0)
+        {
+            estadoanteriorReiniciar = true;
+        }
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+}
+
+void manejoEventos(void *p)
+{
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    while (1)
+    {
+        estadosCronometro_t eventoRecibido;
+        if (xQueueReceive(colaEventosEstadoCronometro, &eventoRecibido, 0))
+        {
+            if (eventoRecibido == PAUSAR)
+            {
+                enPausa = !enPausa;
+            }
+            else if (eventoRecibido == REINICIAR)
+            {
+                digitosActuales = (digitos_t){0, 0, 0, 0, 0};
+                enPausa = true;
+                xQueueSend(colaDigitos, &digitosActuales, portMAX_DELAY);
+            }
+        }
+        if (!enPausa)
+        {
+            ActualizarCronometro();
+            xQueueSend(colaDigitos, &digitosActuales, portMAX_DELAY);
+        }
         vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(100));
     }
 }
-void EscanearPulsadores(void *parametros)
-{
-    bool estadoAnteriorTEC1 = true;
-    bool estadoAnteriorTEC2 = true;
 
-    while (1)
-    {
-        bool estadoActualTEC1 = gpio_get_level(TEC1_Pausa);
-        if (!estadoActualTEC1 && estadoAnteriorTEC1)
-        {
-            estadoActual = (estadoActual == ESTADO_CORRIENDO) ? ESTADO_PAUSADO : ESTADO_CORRIENDO;
-        }
-        estadoAnteriorTEC1 = estadoActualTEC1;
-
-        bool estadoActualTEC2 = gpio_get_level(TEC2_Reiniciar);
-        if (!estadoActualTEC2 && estadoAnteriorTEC2)
-        {
-            if (estadoActual == ESTADO_PAUSADO)
-            {
-                estadoActual = ESTADO_REINICIAR;
-            }
-        }
-        estadoAnteriorTEC2 = estadoActualTEC2;
-
-        vTaskDelay(pdMS_TO_TICKS(50)); // Manejo del rebote
-    }
-}
-
-void ActualizarPantalla(void *parametros)
+void actualizarPantalla(void *p)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     ILI9341Init();
     ILI9341Rotate(ILI9341_Landscape_1);
 
-    // Crear panel para minutos y segundos (4 dígitos)
-    panel_t PanelMinutosSegundos = CrearPanel(30, 70, 4, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
-    // Crear panel para décimas de segundo (1 dígito)
-    panel_t PanelDecimas = CrearPanel(240, 70, 1, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
+    panel_t PanelMinutosSegundos = CrearPanel(30, 15, 4, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
+    panel_t PanelDecimas = CrearPanel(240, 15, 1, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
 
-    struct digitos_previos
-    {
-        int decenasMinutosAnterior;
-        int unidadesMinutosAnterior;
-        int decenasSegundosAnterior;
-        int unidadesSegundosAnterior;
-        int decimasSegundosAnterior;
-    } digitosPrevios = {-1, -1, -1, -1, -1}; // Inicializamos con valores "inválidos"
+    digitos_t digitosPrevios = {-1, -1, -1, -1, -1};
+
+    DibujarDigito(PanelMinutosSegundos, 0, 0);
+    DibujarDigito(PanelMinutosSegundos, 1, 0);
+    DibujarDigito(PanelMinutosSegundos, 2, 0);
+    DibujarDigito(PanelMinutosSegundos, 3, 0);
+    DibujarDigito(PanelDecimas, 0, 0);
 
     while (1)
     {
-        if (xSemaphoreTake(semaforoAccesoDigitos, portMAX_DELAY)) // Se accede al recurso compartido, se toma el semáforo
+        if (xQueueReceive(colaDigitos, &digitosActuales, portMAX_DELAY))
         {
-            // Lógica para actualizar el panel de minutos y segundos
-            if (digitosActuales.decenasMinutos != digitosPrevios.decenasMinutosAnterior)
+            if (xSemaphoreTake(semaforoAccesoDigitos, portMAX_DELAY))
             {
-                DibujarDigito(PanelMinutosSegundos, 0, digitosActuales.decenasMinutos);
-                digitosPrevios.decenasMinutosAnterior = digitosActuales.decenasMinutos;
-            }
-            if (digitosActuales.unidadesMinutos != digitosPrevios.unidadesMinutosAnterior)
-            {
-                DibujarDigito(PanelMinutosSegundos, 1, digitosActuales.unidadesMinutos);
-                digitosPrevios.unidadesMinutosAnterior = digitosActuales.unidadesMinutos;
-            }
-            if (digitosActuales.decenasSegundos != digitosPrevios.decenasSegundosAnterior)
-            {
-                DibujarDigito(PanelMinutosSegundos, 2, digitosActuales.decenasSegundos);
-                digitosPrevios.decenasSegundosAnterior = digitosActuales.decenasSegundos;
-            }
-            if (digitosActuales.unidadesSegundos != digitosPrevios.unidadesSegundosAnterior)
-            {
-                DibujarDigito(PanelMinutosSegundos, 3, digitosActuales.unidadesSegundos);
-                digitosPrevios.unidadesSegundosAnterior = digitosActuales.unidadesSegundos;
-            }
+                if (digitosActuales.decenasMinutos != digitosPrevios.decenasMinutos)
+                    DibujarDigito(PanelMinutosSegundos, 0, digitosActuales.decenasMinutos);
 
-            // Lógica para actualizar el panel de décimas de segundo
-            if (digitosActuales.decimasSegundo != digitosPrevios.decimasSegundosAnterior)
-            {
-                DibujarDigito(PanelDecimas, 0, digitosActuales.decimasSegundo);
-                digitosPrevios.decimasSegundosAnterior = digitosActuales.decimasSegundo;
-            }
+                if (digitosActuales.unidadesMinutos != digitosPrevios.unidadesMinutos)
+                    DibujarDigito(PanelMinutosSegundos, 1, digitosActuales.unidadesMinutos);
 
-            xSemaphoreGive(semaforoAccesoDigitos); // Se libera el recurso compartido, se libera el semáforo
+                if (digitosActuales.decenasSegundos != digitosPrevios.decenasSegundos)
+                    DibujarDigito(PanelMinutosSegundos, 2, digitosActuales.decenasSegundos);
+
+                if (digitosActuales.unidadesSegundos != digitosPrevios.unidadesSegundos)
+                    DibujarDigito(PanelMinutosSegundos, 3, digitosActuales.unidadesSegundos);
+
+                if (digitosActuales.decimasSegundo != digitosPrevios.decimasSegundo)
+                    DibujarDigito(PanelDecimas, 0, digitosActuales.decimasSegundo);
+
+                digitosPrevios = digitosActuales;
+                xSemaphoreGive(semaforoAccesoDigitos);
+            }
         }
-        vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(50)); // Tiempo de actualización de pantalla
+        vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(100));
     }
 }
 
-/***************************************** app_main()*****************************************/
-void app_main(void)
+void app_main()
 {
-    // Se crea el semaforo que se va a utilizar en las diferentes zonas del codigo
+    colaDigitos = xQueueCreate(5, sizeof(digitos_t));
+    colaEventosEstadoCronometro = xQueueCreate(5, sizeof(estadosCronometro_t));
     semaforoAccesoDigitos = xSemaphoreCreateMutex();
-    // configuraciones iniciales
-    ConfigurarSalidasLed();
-    ConfigurarTeclas();
-    // MensajeInicio();
-    //  Se crean las tareas
 
-    xTaskCreate(ManejarEstadoCronometro, "ManejarEstadoCronometro", 2048, NULL, 2, NULL);
-    xTaskCreate(EscanearPulsadores, "EscanearPulsadores", 1024, NULL, 1, NULL);
-    xTaskCreate(ActualizarPantalla, "ActualizarPantalla", 4096, NULL, 1, NULL);
+    xTaskCreate(leerBotones, "LecturaBotonera", 2048, NULL, 1, NULL);
+    xTaskCreate(manejoEventos, "Tiempo100ms", 2048, NULL, 2, NULL);
+    xTaskCreate(actualizarPantalla, "ActualizarPantalla", 4096, NULL, 3, NULL);
 }
