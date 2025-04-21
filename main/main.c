@@ -94,6 +94,27 @@ void manejoEventos(void *p)
     }
 }
 
+void manejoLedRGB(void *p)
+{
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    bool estadoLed = false;
+    ConfigurarSalidasLed();
+    while (1)
+    {
+        if (enPausa)
+        {
+            PrenderLedRojo(estadoLed);
+            estadoLed = !estadoLed;
+        }
+        if (!enPausa)
+        {
+            PrenderLedVerde(estadoLed);
+            estadoLed = !estadoLed;
+        }
+        vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(1000));
+    }
+}
+
 void actualizarPantalla(void *p)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -149,4 +170,5 @@ void app_main()
     xTaskCreate(leerBotones, "LecturaBotonera", 2048, NULL, 1, NULL);
     xTaskCreate(manejoEventos, "Tiempo100ms", 2048, NULL, 2, NULL);
     xTaskCreate(actualizarPantalla, "ActualizarPantalla", 4096, NULL, 3, NULL);
+    xTaskCreate(manejoLedRGB, "LedsTestigos", 4096, NULL, 1, NULL);
 }
