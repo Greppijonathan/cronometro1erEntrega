@@ -10,6 +10,7 @@
 
 void PrenderLedVerde(bool estadoLed);
 void PrenderLedRojo(bool estadoLed);
+void PrenderLedAzul(bool estadoLed);
 void ConfigurarSalidasLed(void);
 
 #endif // LEDS_H

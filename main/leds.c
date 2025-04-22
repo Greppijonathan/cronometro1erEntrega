@@ -14,6 +14,13 @@ void PrenderLedRojo(bool estadoLed)
     gpio_set_level(RGB_AZUL, LED_OFF);
 }
 
+void PrenderLedAzul(bool estadoLed)
+{
+    gpio_set_level(RGB_VERDE, LED_OFF);
+    gpio_set_level(RGB_ROJO, LED_OFF);
+    gpio_set_level(RGB_AZUL, estadoLed);
+}
+
 void ConfigurarSalidasLed(void)
 {
     gpio_set_direction(RGB_ROJO, GPIO_MODE_OUTPUT);

@@ -24,18 +24,24 @@ QueueHandle_t colaEventosEstadoCronometro;
 SemaphoreHandle_t semaforoAccesoDigitos;
 
 bool enPausa = true;
+bool tiempoParcial = false;
+
+digitos_t digitosParciales = {0, 0, 0, 0, 0};
 
 typedef enum
 {
     PAUSAR,
-    REINICIAR
+    REINICIAR,
+    PARCIAL
 } estadosCronometro_t;
 
 void leerBotones(void *p)
 {
     ConfigurarTeclas();
+
     bool estadoanteriorPausa = true;
     bool estadoanteriorReiniciar = true;
+    bool estaoanteriorTiempoParcial = true;
 
     while (1)
     {
@@ -62,6 +68,17 @@ void leerBotones(void *p)
         {
             estadoanteriorReiniciar = true;
         }
+        if ((gpio_get_level(TEC3_Parcial) == 0) && estaoanteriorTiempoParcial)
+        {
+            estadosCronometro_t evento = PARCIAL;
+            xQueueSend(colaEventosEstadoCronometro, &evento, portMAX_DELAY);
+            estaoanteriorTiempoParcial = false;
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+        else if (gpio_get_level(TEC3_Parcial) != 0)
+        {
+            estaoanteriorTiempoParcial = true;
+        }
         vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
@@ -78,11 +95,20 @@ void manejoEventos(void *p)
             {
                 enPausa = !enPausa;
             }
-            else if (eventoRecibido == REINICIAR)
+            if (eventoRecibido == REINICIAR)
             {
                 digitosActuales = (digitos_t){0, 0, 0, 0, 0};
                 enPausa = true;
+                tiempoParcial = false;
                 xQueueSend(colaDigitos, &digitosActuales, portMAX_DELAY);
+            }
+            if (eventoRecibido == PARCIAL)
+            {
+                if (!tiempoParcial)
+                {
+                    digitosParciales = digitosActuales; // Asigno los digitos actuales a los parciales para mostrar en pantalla
+                }
+                tiempoParcial = !tiempoParcial;
             }
         }
         if (!enPausa)
@@ -99,18 +125,22 @@ void manejoLedRGB(void *p)
     TickType_t xLastWakeTime = xTaskGetTickCount();
     bool estadoLed = false;
     ConfigurarSalidasLed();
+
     while (1)
     {
-        if (enPausa)
+        if (tiempoParcial)
+        {
+            PrenderLedAzul(estadoLed);
+        }
+        else if (enPausa)
         {
             PrenderLedRojo(estadoLed);
-            estadoLed = !estadoLed;
         }
-        if (!enPausa)
+        else
         {
             PrenderLedVerde(estadoLed);
-            estadoLed = !estadoLed;
         }
+        estadoLed = !estadoLed;
         vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(1000));
     }
 }
@@ -120,14 +150,10 @@ void actualizarPantalla(void *p)
     TickType_t xLastWakeTime = xTaskGetTickCount();
     ILI9341Init();
     ILI9341Rotate(ILI9341_Landscape_1);
-    ILI9341DrawString(90, 0, "M M : S S : D", &font_11x18, ILI9341_RED, ILI9341_BLACK);
-    ILI9341DrawString(0, 130, "----------PARCIALES---------", &font_11x18, ILI9341_RED, ILI9341_BLACK);
-    panel_t PanelMinutosSegundos = CrearPanel(30, 30, 4, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
-    panel_t PanelDecimas = CrearPanel(240, 30, 1, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
-    // panel_t PanelMinutos = CrearPanel(30, 30, 2, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
-    // panel_t PanelSegundos = CrearPanel(120, 30, 2, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
-    // panel_t PanelDecimas = CrearPanel(240, 30, 1, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
-    digitos_t digitosPrevios = {-1, -1, -1, -1, -1};
+    // ILI9341DrawString(90, 0, "M M : S S : D", &font_11x18, ILI9341_RED, ILI9341_BLACK);
+
+    panel_t PanelMinutosSegundos = CrearPanel(30, 70, 4, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
+    panel_t PanelDecimas = CrearPanel(240, 70, 1, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
 
     DibujarDigito(PanelMinutosSegundos, 0, 0);
     DibujarDigito(PanelMinutosSegundos, 1, 0);
@@ -135,28 +161,32 @@ void actualizarPantalla(void *p)
     DibujarDigito(PanelMinutosSegundos, 3, 0);
     DibujarDigito(PanelDecimas, 0, 0);
 
+    digitos_t digitosPrevios = {-1, -1, -1, -1, -1};
+
     while (1)
     {
         if (xQueueReceive(colaDigitos, &digitosActuales, portMAX_DELAY))
         {
             if (xSemaphoreTake(semaforoAccesoDigitos, portMAX_DELAY))
             {
-                if (digitosActuales.decenasMinutos != digitosPrevios.decenasMinutos)
-                    DibujarDigito(PanelMinutosSegundos, 0, digitosActuales.decenasMinutos);
+                digitos_t *digitosAMostrar = tiempoParcial ? &digitosParciales : &digitosActuales;
 
-                if (digitosActuales.unidadesMinutos != digitosPrevios.unidadesMinutos)
-                    DibujarDigito(PanelMinutosSegundos, 1, digitosActuales.unidadesMinutos);
+                if (digitosAMostrar->decenasMinutos != digitosPrevios.decenasMinutos)
+                    DibujarDigito(PanelMinutosSegundos, 0, digitosAMostrar->decenasMinutos);
 
-                if (digitosActuales.decenasSegundos != digitosPrevios.decenasSegundos)
-                    DibujarDigito(PanelMinutosSegundos, 2, digitosActuales.decenasSegundos);
+                if (digitosAMostrar->unidadesMinutos != digitosPrevios.unidadesMinutos)
+                    DibujarDigito(PanelMinutosSegundos, 1, digitosAMostrar->unidadesMinutos);
 
-                if (digitosActuales.unidadesSegundos != digitosPrevios.unidadesSegundos)
-                    DibujarDigito(PanelMinutosSegundos, 3, digitosActuales.unidadesSegundos);
+                if (digitosAMostrar->decenasSegundos != digitosPrevios.decenasSegundos)
+                    DibujarDigito(PanelMinutosSegundos, 2, digitosAMostrar->decenasSegundos);
 
-                if (digitosActuales.decimasSegundo != digitosPrevios.decimasSegundo)
-                    DibujarDigito(PanelDecimas, 0, digitosActuales.decimasSegundo);
+                if (digitosAMostrar->unidadesSegundos != digitosPrevios.unidadesSegundos)
+                    DibujarDigito(PanelMinutosSegundos, 3, digitosAMostrar->unidadesSegundos);
 
-                digitosPrevios = digitosActuales;
+                if (digitosAMostrar->decimasSegundo != digitosPrevios.decimasSegundo)
+                    DibujarDigito(PanelDecimas, 0, digitosAMostrar->decimasSegundo);
+
+                digitosPrevios = *digitosAMostrar;
                 xSemaphoreGive(semaforoAccesoDigitos);
             }
         }

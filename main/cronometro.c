@@ -30,7 +30,7 @@ void ActualizarCronometro(void)
         }
     }
 
-    // Reinicio del cronómetro cuando se llega a 59:59.9
+    // Reinicio
     if (digitosActuales.decenasMinutos == 5 && digitosActuales.unidadesMinutos == 9 &&
         digitosActuales.decenasSegundos == 5 && digitosActuales.unidadesSegundos == 9 &&
         digitosActuales.decimasSegundo == 9)
