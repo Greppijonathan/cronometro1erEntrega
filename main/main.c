@@ -20,14 +20,14 @@
 #define DIGITO_FONDO ILI9341_BLACK
 
 QueueHandle_t colaDigitos;
-QueueHandle_t colaEventosEstadoCronometro;
+QueueHandle_t colaEstadosCronometro;
 SemaphoreHandle_t semaforoAccesoDigitos;
 
 bool enPausa = true;
 bool tiempoParcial = false;
 
 digitos_t digitosParciales = {0, 0, 0, 0, 0};
-
+// Estados del cronometro para trabajar con la cola
 typedef enum
 {
     PAUSAR,
@@ -35,6 +35,16 @@ typedef enum
     PARCIAL
 } estadosCronometro_t;
 
+/**
+ * @brief Función que se encarga de leer el estado de los botones
+ *        y enviar eventos a la cola de eventos del cronometro
+ *        dependiendo del estado de los botones
+ *
+ * @param p Puntero a un void, no se utiliza
+ *
+ *
+ * @return Nada
+ */
 void leerBotones(void *p)
 {
     ConfigurarTeclas();
@@ -48,7 +58,7 @@ void leerBotones(void *p)
         if ((gpio_get_level(TEC1_Pausa) == 0) && estadoanteriorPausa)
         {
             estadosCronometro_t evento = PAUSAR;
-            xQueueSend(colaEventosEstadoCronometro, &evento, portMAX_DELAY);
+            xQueueSend(colaEstadosCronometro, &evento, portMAX_DELAY);
             estadoanteriorPausa = false;
             vTaskDelay(pdMS_TO_TICKS(100));
         }
@@ -60,7 +70,7 @@ void leerBotones(void *p)
         if ((gpio_get_level(TEC2_Reiniciar) == 0) && estadoanteriorReiniciar)
         {
             estadosCronometro_t evento = REINICIAR;
-            xQueueSend(colaEventosEstadoCronometro, &evento, portMAX_DELAY);
+            xQueueSend(colaEstadosCronometro, &evento, portMAX_DELAY);
             estadoanteriorReiniciar = false;
             vTaskDelay(pdMS_TO_TICKS(100));
         }
@@ -71,7 +81,7 @@ void leerBotones(void *p)
         if ((gpio_get_level(TEC3_Parcial) == 0) && estaoanteriorTiempoParcial)
         {
             estadosCronometro_t evento = PARCIAL;
-            xQueueSend(colaEventosEstadoCronometro, &evento, portMAX_DELAY);
+            xQueueSend(colaEstadosCronometro, &evento, portMAX_DELAY);
             estaoanteriorTiempoParcial = false;
             vTaskDelay(pdMS_TO_TICKS(100));
         }
@@ -83,13 +93,20 @@ void leerBotones(void *p)
     }
 }
 
-void manejoEventos(void *p)
+/**
+ * @brief Tarea para manejar los estados del cronometro. Recibe la cola que se va llenando con la tarea del teclado
+ * modifica banderas globales, que indican en que estado esta el cronometro (luego las uso para hacer parapadear el led RGB)
+ * Utiliza  "colaDigitos" para enviar el valor a la tarea que actualiza pantalla
+ * @param p Pointer to a void, not used.
+ */
+
+void manejoEstadosCronometro(void *p)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     while (1)
     {
         estadosCronometro_t eventoRecibido;
-        if (xQueueReceive(colaEventosEstadoCronometro, &eventoRecibido, 0))
+        if (xQueueReceive(colaEstadosCronometro, &eventoRecibido, 0))
         {
             if (eventoRecibido == PAUSAR)
             {
@@ -97,7 +114,7 @@ void manejoEventos(void *p)
             }
             if (eventoRecibido == REINICIAR)
             {
-                digitosActuales = (digitos_t){0, 0, 0, 0, 0};
+                digitosActuales = (digitos_t){0, 0, 0, 0, 0}; // reinicio la cuenta
                 enPausa = true;
                 tiempoParcial = false;
                 xQueueSend(colaDigitos, &digitosActuales, portMAX_DELAY);
@@ -106,20 +123,24 @@ void manejoEventos(void *p)
             {
                 if (!tiempoParcial)
                 {
-                    digitosParciales = digitosActuales; // Asigno los digitos actuales a los parciales para mostrar en pantalla
+                    digitosParciales = digitosActuales; // Asigno los digitos actuales a los parciales para mostrar en pantalla el resultado parcial
                 }
                 tiempoParcial = !tiempoParcial;
             }
         }
         if (!enPausa)
         {
-            ActualizarCronometro();
+            ActualizarCronometro(); // Logica para incrementar los digitos del cronometro
             xQueueSend(colaDigitos, &digitosActuales, portMAX_DELAY);
         }
         vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(100));
     }
 }
 
+/**
+ * @brief Parpadea el led RGB en diferentes colores, segun en que estado este el cronometro.
+ *
+ */
 void manejoLedRGB(void *p)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -145,12 +166,16 @@ void manejoLedRGB(void *p)
     }
 }
 
+/**
+ * @brief Inicializa pantalla , crea los paneles y recibe la cola con los digitos actualizados
+ * Tambien compara cual fue el digito que cambio y lo actualiza en la pantalla
+ * @param p Pointer to a void, not used.
+ */
 void actualizarPantalla(void *p)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     ILI9341Init();
     ILI9341Rotate(ILI9341_Landscape_1);
-    // ILI9341DrawString(90, 0, "M M : S S : D", &font_11x18, ILI9341_RED, ILI9341_BLACK);
 
     panel_t PanelMinutosSegundos = CrearPanel(30, 70, 4, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
     panel_t PanelDecimas = CrearPanel(240, 70, 1, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
@@ -197,11 +222,11 @@ void actualizarPantalla(void *p)
 void app_main()
 {
     colaDigitos = xQueueCreate(5, sizeof(digitos_t));
-    colaEventosEstadoCronometro = xQueueCreate(5, sizeof(estadosCronometro_t));
+    colaEstadosCronometro = xQueueCreate(5, sizeof(estadosCronometro_t));
     semaforoAccesoDigitos = xSemaphoreCreateMutex();
 
     xTaskCreate(leerBotones, "LecturaBotonera", 2048, NULL, 1, NULL);
-    xTaskCreate(manejoEventos, "Tiempo100ms", 2048, NULL, 2, NULL);
+    xTaskCreate(manejoEstadosCronometro, "Tiempo100ms", 2048, NULL, 2, NULL);
     xTaskCreate(actualizarPantalla, "ActualizarPantalla", 4096, NULL, 3, NULL);
     xTaskCreate(manejoLedRGB, "LedsTestigos", 4096, NULL, 1, NULL);
 }
