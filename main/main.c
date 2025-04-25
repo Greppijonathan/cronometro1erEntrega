@@ -177,13 +177,21 @@ void actualizarPantalla(void *p)
     ILI9341Init();
     ILI9341Rotate(ILI9341_Landscape_1);
 
-    panel_t PanelMinutosSegundos = CrearPanel(30, 70, 4, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
-    panel_t PanelDecimas = CrearPanel(240, 70, 1, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
+    // Crear paneles separados para los dígitos
+    panel_t PanelMinutos = CrearPanel(12, 0, 2, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
+    panel_t PanelSegundos = CrearPanel(132, 0, 2, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
+    panel_t PanelDecimas = CrearPanel(252, 0, 1, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
 
-    DibujarDigito(PanelMinutosSegundos, 0, 0);
-    DibujarDigito(PanelMinutosSegundos, 1, 0);
-    DibujarDigito(PanelMinutosSegundos, 2, 0);
-    DibujarDigito(PanelMinutosSegundos, 3, 0);
+    // Dibujar : y .
+    ILI9341DrawFilledCircle(121, 22, 3, DIGITO_ENCENDIDO); // Círculo superior
+    ILI9341DrawFilledCircle(121, 62, 3, DIGITO_ENCENDIDO); // Círculo inferior
+
+    ILI9341DrawFilledCircle(244, 80, 3, DIGITO_ENCENDIDO); // Círculo decimas
+    // Inicializar los paneles
+    DibujarDigito(PanelMinutos, 0, 0);
+    DibujarDigito(PanelMinutos, 1, 0);
+    DibujarDigito(PanelSegundos, 0, 0);
+    DibujarDigito(PanelSegundos, 1, 0);
     DibujarDigito(PanelDecimas, 0, 0);
 
     digitos_t digitosPrevios = {-1, -1, -1, -1, -1};
@@ -196,18 +204,21 @@ void actualizarPantalla(void *p)
             {
                 digitos_t *digitosAMostrar = tiempoParcial ? &digitosParciales : &digitosActuales;
 
+                // Dibujar minutos
                 if (digitosAMostrar->decenasMinutos != digitosPrevios.decenasMinutos)
-                    DibujarDigito(PanelMinutosSegundos, 0, digitosAMostrar->decenasMinutos);
+                    DibujarDigito(PanelMinutos, 0, digitosAMostrar->decenasMinutos);
 
                 if (digitosAMostrar->unidadesMinutos != digitosPrevios.unidadesMinutos)
-                    DibujarDigito(PanelMinutosSegundos, 1, digitosAMostrar->unidadesMinutos);
+                    DibujarDigito(PanelMinutos, 1, digitosAMostrar->unidadesMinutos);
 
+                // Dibujar segundos
                 if (digitosAMostrar->decenasSegundos != digitosPrevios.decenasSegundos)
-                    DibujarDigito(PanelMinutosSegundos, 2, digitosAMostrar->decenasSegundos);
+                    DibujarDigito(PanelSegundos, 0, digitosAMostrar->decenasSegundos);
 
                 if (digitosAMostrar->unidadesSegundos != digitosPrevios.unidadesSegundos)
-                    DibujarDigito(PanelMinutosSegundos, 3, digitosAMostrar->unidadesSegundos);
+                    DibujarDigito(PanelSegundos, 1, digitosAMostrar->unidadesSegundos);
 
+                // Dibujar décimas
                 if (digitosAMostrar->decimasSegundo != digitosPrevios.decimasSegundo)
                     DibujarDigito(PanelDecimas, 0, digitosAMostrar->decimasSegundo);
 

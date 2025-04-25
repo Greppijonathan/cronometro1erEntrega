@@ -31,14 +31,15 @@ SPDX-License-Identifier: MIT
 /* === Cabecera C++ ================================================================================================ */
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 /* === Public macros definitions =================================================================================== */
 
 //! @brief Cantidad máxima de paneles que se pueden crear
 #ifndef MAXIMO_PANELES
-#define MAXIMO_PANELES 2
+#define MAXIMO_PANELES 4
 #endif
 
 //! @brief Cantidad máxima de digitos que se pueden mostrar en un panel
@@ -46,41 +47,41 @@ extern "C" {
 #define MAXIMO_DIGITOS 4
 #endif
 
-/* === Public data type declarations =============================================================================== */
+    /* === Public data type declarations =============================================================================== */
 
-//! @brief Tipo de dato para referenciar a un panel de digitos
-typedef struct panel_s * panel_t;
+    //! @brief Tipo de dato para referenciar a un panel de digitos
+    typedef struct panel_s *panel_t;
 
-/* === Public variable declarations ================================================================================ */
+    /* === Public variable declarations ================================================================================ */
 
-/* === Public function declarations ================================================================================ */
+    /* === Public function declarations ================================================================================ */
 
-/**
- * @brief Función que crea un panel de n digitos de 7 segmentos en una pantalla TFT
- *
- * @param  x         Posición horizontal de la esquina superior derecha del panel
- * @param  y         Posición vertical de la esquina superior derecha del panel
- * @param  digitos   Cantidad de digitos que se pueden mostrar en el panel
- * @param  alto      Alto en pixeles del caracter del panel
- * @param  ancho     Ancho en pixeles del caracter del panel
- * @param  encendido Color de los segmentos encendidos de los digitos
- * @param  apagado   Color de los segmentos apagados de los digitos
- * @param  fondo     Color de fondo del panel
- * @return panel_t   Puntero al panel creado
- */
-panel_t CrearPanel(uint16_t x, uint16_t y, uint16_t digitos, uint16_t alto, uint16_t ancho, uint16_t encendido,
-                   uint16_t apagado, uint16_t fondo);
+    /**
+     * @brief Función que crea un panel de n digitos de 7 segmentos en una pantalla TFT
+     *
+     * @param  x         Posición horizontal de la esquina superior derecha del panel
+     * @param  y         Posición vertical de la esquina superior derecha del panel
+     * @param  digitos   Cantidad de digitos que se pueden mostrar en el panel
+     * @param  alto      Alto en pixeles del caracter del panel
+     * @param  ancho     Ancho en pixeles del caracter del panel
+     * @param  encendido Color de los segmentos encendidos de los digitos
+     * @param  apagado   Color de los segmentos apagados de los digitos
+     * @param  fondo     Color de fondo del panel
+     * @return panel_t   Puntero al panel creado
+     */
+    panel_t CrearPanel(uint16_t x, uint16_t y, uint16_t digitos, uint16_t alto, uint16_t ancho, uint16_t encendido,
+                       uint16_t apagado, uint16_t fondo);
 
-/**
- * @brief Función para actualizar el valor de un digito en un panel
- *
- * @param self       Puntero al panel creado con la funcion @ref CrearPanel
- * @param posicion   Posición del digito que se desea actualizar
- * @param valor      Valor que se desea mostrar en el digito
- */
-void DibujarDigito(panel_t self, uint8_t posicion, uint8_t valor);
+    /**
+     * @brief Función para actualizar el valor de un digito en un panel
+     *
+     * @param self       Puntero al panel creado con la funcion @ref CrearPanel
+     * @param posicion   Posición del digito que se desea actualizar
+     * @param valor      Valor que se desea mostrar en el digito
+     */
+    void DibujarDigito(panel_t self, uint8_t posicion, uint8_t valor);
 
-/* === End of documentation ======================================================================================== */
+    /* === End of documentation ======================================================================================== */
 
 #ifdef __cplusplus
 }
