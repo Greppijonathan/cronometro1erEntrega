@@ -248,7 +248,7 @@ void app_main()
     semaforoAccesoDigitos = xSemaphoreCreateMutex();
 
     xTaskCreate(leerBotones, "LecturaBotonera", 2048, NULL, 1, NULL);
-    xTaskCreate(manejoEstadosCronometro, "Tiempo100ms", 2048, NULL, 2, NULL);
-    xTaskCreate(actualizarPantalla, "ActualizarPantalla", 4096, NULL, 3, NULL);
+    xTaskCreate(manejoEstadosCronometro, "Tiempo100ms", 2048, NULL, 3, NULL);
+    xTaskCreate(actualizarPantalla, "ActualizarPantalla", 4096, NULL, 2, NULL);
     xTaskCreate(manejoLedRGB, "LedsTestigos", 4096, NULL, 1, NULL);
 }
