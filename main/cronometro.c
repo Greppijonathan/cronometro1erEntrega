@@ -1,40 +1,39 @@
 #include "cronometro.h"
 
 digitos_t digitosActuales = {0, 0, 0, 0, 0};
+digitos_t digitosParciales = {0, 0, 0, 0, 0};
 
-void ActualizarCronometro(void)
+void ActualizarCronometro(digitos_t *digitos)
 {
-    digitosActuales.decimasSegundo++;
+    digitos->decimasSegundo++;
 
-    if (digitosActuales.decimasSegundo == 10)
+    if (digitos->decimasSegundo == 10)
     {
-        digitosActuales.decimasSegundo = 0;
-        digitosActuales.unidadesSegundos++;
+        digitos->decimasSegundo = 0;
+        digitos->unidadesSegundos++;
 
-        if (digitosActuales.unidadesSegundos == 10)
+        if (digitos->unidadesSegundos == 10)
         {
-            digitosActuales.unidadesSegundos = 0;
-            digitosActuales.decenasSegundos++;
+            digitos->unidadesSegundos = 0;
+            digitos->decenasSegundos++;
 
-            if (digitosActuales.decenasSegundos == 6)
+            if (digitos->decenasSegundos == 6)
             {
-                digitosActuales.decenasSegundos = 0;
-                digitosActuales.unidadesMinutos++;
+                digitos->decenasSegundos = 0;
+                digitos->unidadesMinutos++;
 
-                if (digitosActuales.unidadesMinutos == 10)
+                if (digitos->unidadesMinutos == 10)
                 {
-                    digitosActuales.unidadesMinutos = 0;
-                    digitosActuales.decenasMinutos++;
+                    digitos->unidadesMinutos = 0;
+                    digitos->decenasMinutos++;
                 }
             }
         }
     }
-
-    // Reinicio
-    if (digitosActuales.decenasMinutos == 5 && digitosActuales.unidadesMinutos == 9 &&
-        digitosActuales.decenasSegundos == 5 && digitosActuales.unidadesSegundos == 9 &&
-        digitosActuales.decimasSegundo == 9)
+    if (digitos->decenasMinutos == 5 && digitos->unidadesMinutos == 9 &&
+        digitos->decenasSegundos == 5 && digitos->unidadesSegundos == 9 &&
+        digitos->decimasSegundo == 9)
     {
-        digitosActuales = (digitos_t){0, 0, 0, 0, 0};
+        *digitos = (digitos_t){0, 0, 0, 0, 0};
     }
 }

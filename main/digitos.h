@@ -39,12 +39,12 @@ extern "C"
 
 //! @brief Cantidad máxima de paneles que se pueden crear
 #ifndef MAXIMO_PANELES
-#define MAXIMO_PANELES 4
+#define MAXIMO_PANELES 12
 #endif
 
 //! @brief Cantidad máxima de digitos que se pueden mostrar en un panel
 #ifndef MAXIMO_DIGITOS
-#define MAXIMO_DIGITOS 4
+#define MAXIMO_DIGITOS 5
 #endif
 
     /* === Public data type declarations =============================================================================== */

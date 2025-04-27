@@ -21,13 +21,12 @@
 
 QueueHandle_t colaDigitos;
 QueueHandle_t colaEstadosCronometro;
+QueueHandle_t colaDigitosParciales;
 SemaphoreHandle_t semaforoAccesoDigitos;
 
-bool enPausa = true;
-bool tiempoParcial = false;
+bool flagPausa = true;
+bool flagParcial = false;
 
-digitos_t digitosParciales = {0, 0, 0, 0, 0};
-// Estados del cronometro para trabajar con la cola
 typedef enum
 {
     PAUSAR,
@@ -35,30 +34,24 @@ typedef enum
     PARCIAL
 } estadosCronometro_t;
 
-/**
- * @brief Función que se encarga de leer el estado de los botones
- *        y enviar eventos a la cola de eventos del cronometro
- *        dependiendo del estado de los botones
- *
- * @param p Puntero a un void, no se utiliza
- *
- *
- * @return Nada
- */
 void leerBotones(void *p)
 {
-    ConfigurarTeclas();
+    configuracion_pin_t configuraciones[] = {
+        {TEC1_Pausa, GPIO_MODE_INPUT, GPIO_PULLUP_ONLY},
+        {TEC2_Reiniciar, GPIO_MODE_INPUT, GPIO_PULLUP_ONLY},
+        {TEC3_Parcial, GPIO_MODE_INPUT, GPIO_PULLUP_ONLY}};
+    ConfigurarTeclas(configuraciones, sizeof(configuraciones) / sizeof(configuraciones[0]));
 
     bool estadoanteriorPausa = true;
     bool estadoanteriorReiniciar = true;
-    bool estaoanteriorTiempoParcial = true;
-
+    bool estadoanteriorTiempoParcial = true;
     while (1)
     {
         if ((gpio_get_level(TEC1_Pausa) == 0) && estadoanteriorPausa)
         {
             estadosCronometro_t evento = PAUSAR;
             xQueueSend(colaEstadosCronometro, &evento, portMAX_DELAY);
+            flagPausa = !flagPausa;
             estadoanteriorPausa = false;
             vTaskDelay(pdMS_TO_TICKS(100));
         }
@@ -66,11 +59,12 @@ void leerBotones(void *p)
         {
             estadoanteriorPausa = true;
         }
-
         if ((gpio_get_level(TEC2_Reiniciar) == 0) && estadoanteriorReiniciar)
         {
             estadosCronometro_t evento = REINICIAR;
             xQueueSend(colaEstadosCronometro, &evento, portMAX_DELAY);
+            flagPausa = true;
+            flagParcial = false;
             estadoanteriorReiniciar = false;
             vTaskDelay(pdMS_TO_TICKS(100));
         }
@@ -78,69 +72,62 @@ void leerBotones(void *p)
         {
             estadoanteriorReiniciar = true;
         }
-        if ((gpio_get_level(TEC3_Parcial) == 0) && estaoanteriorTiempoParcial)
+        if ((gpio_get_level(TEC3_Parcial) == 0) && estadoanteriorTiempoParcial)
         {
             estadosCronometro_t evento = PARCIAL;
             xQueueSend(colaEstadosCronometro, &evento, portMAX_DELAY);
-            estaoanteriorTiempoParcial = false;
+            flagParcial = true;
+            estadoanteriorTiempoParcial = false;
             vTaskDelay(pdMS_TO_TICKS(100));
         }
         else if (gpio_get_level(TEC3_Parcial) != 0)
         {
-            estaoanteriorTiempoParcial = true;
+            estadoanteriorTiempoParcial = true;
         }
+
         vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
 
-/**
- * @brief Tarea para manejar los estados del cronometro. Recibe la cola que se va llenando con la tarea del teclado
- * modifica banderas globales, que indican en que estado esta el cronometro (luego las uso para hacer parapadear el led RGB)
- * Utiliza  "colaDigitos" para enviar el valor a la tarea que actualiza pantalla
- * @param p Pointer to a void, not used.
- */
-
 void manejoEstadosCronometro(void *p)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
+    digitos_t digitosActuales = {0, 0, 0, 0, 0};
+    bool enPausa = true;
+
     while (1)
     {
         estadosCronometro_t eventoRecibido;
+
         if (xQueueReceive(colaEstadosCronometro, &eventoRecibido, 0))
         {
-            if (eventoRecibido == PAUSAR)
+            switch (eventoRecibido)
             {
+            case PAUSAR:
                 enPausa = !enPausa;
-            }
-            if (eventoRecibido == REINICIAR)
-            {
-                digitosActuales = (digitos_t){0, 0, 0, 0, 0}; // reinicio la cuenta
+                break;
+            case REINICIAR:
+                digitosActuales = (digitos_t){0, 0, 0, 0, 0};
                 enPausa = true;
-                tiempoParcial = false;
                 xQueueSend(colaDigitos, &digitosActuales, portMAX_DELAY);
-            }
-            if (eventoRecibido == PARCIAL)
-            {
-                if (!tiempoParcial)
-                {
-                    digitosParciales = digitosActuales; // Asigno los digitos actuales a los parciales para mostrar en pantalla el resultado parcial
-                }
-                tiempoParcial = !tiempoParcial;
+                break;
+
+            case PARCIAL:
+                xQueueSend(colaDigitosParciales, &digitosActuales, portMAX_DELAY);
+                break;
             }
         }
+
         if (!enPausa)
         {
-            ActualizarCronometro(); // Logica para incrementar los digitos del cronometro
+            ActualizarCronometro(&digitosActuales);
             xQueueSend(colaDigitos, &digitosActuales, portMAX_DELAY);
         }
+
         vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(100));
     }
 }
 
-/**
- * @brief Parpadea el led RGB en diferentes colores, segun en que estado este el cronometro.
- *
- */
 void manejoLedRGB(void *p)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -149,11 +136,7 @@ void manejoLedRGB(void *p)
 
     while (1)
     {
-        if (tiempoParcial)
-        {
-            PrenderLedAzul(estadoLed);
-        }
-        else if (enPausa)
+        if (flagPausa)
         {
             PrenderLedRojo(estadoLed);
         }
@@ -166,28 +149,32 @@ void manejoLedRGB(void *p)
     }
 }
 
-/**
- * @brief Inicializa pantalla , crea los paneles y recibe la cola con los digitos actualizados
- * Tambien compara cual fue el digito que cambio y lo actualiza en la pantalla
- * @param p Pointer to a void, not used.
- */
 void actualizarPantalla(void *p)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     ILI9341Init();
     ILI9341Rotate(ILI9341_Landscape_1);
 
-    // Crear paneles separados para los dígitos
     panel_t PanelMinutos = CrearPanel(12, 0, 2, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
     panel_t PanelSegundos = CrearPanel(132, 0, 2, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
     panel_t PanelDecimas = CrearPanel(252, 0, 1, DIGITO_ALTO, DIGITO_ANCHO, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
 
-    // Dibujar : y .
-    ILI9341DrawFilledCircle(121, 22, 3, DIGITO_ENCENDIDO); // Círculo superior
-    ILI9341DrawFilledCircle(121, 62, 3, DIGITO_ENCENDIDO); // Círculo inferior
+    panel_t Panelparcial1Minutos = CrearPanel(80, 100, 2, 30, 20, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
+    panel_t Panelparcial1Segundos = CrearPanel(150, 100, 2, 30, 20, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
+    panel_t Panelparcial1Decimas = CrearPanel(220, 100, 1, 30, 20, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
 
-    ILI9341DrawFilledCircle(244, 80, 3, DIGITO_ENCENDIDO); // Círculo decimas
-    // Inicializar los paneles
+    panel_t Panelparcial2Minutos = CrearPanel(80, 145, 2, 30, 20, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
+    panel_t Panelparcial2Segundos = CrearPanel(150, 145, 2, 30, 20, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
+    panel_t Panelparcial2Decimas = CrearPanel(220, 145, 1, 30, 20, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
+
+    panel_t Panelparcial3Minutos = CrearPanel(80, 200, 2, 30, 20, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
+    panel_t Panelparcial3Segundos = CrearPanel(150, 200, 2, 30, 20, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
+    panel_t Panelparcial3Decimas = CrearPanel(220, 200, 1, 30, 20, DIGITO_ENCENDIDO, DIGITO_APAGADO, DIGITO_FONDO);
+
+    ILI9341DrawFilledCircle(121, 22, 3, DIGITO_ENCENDIDO);
+    ILI9341DrawFilledCircle(121, 62, 3, DIGITO_ENCENDIDO);
+    ILI9341DrawFilledCircle(244, 80, 3, DIGITO_ENCENDIDO);
+
     DibujarDigito(PanelMinutos, 0, 0);
     DibujarDigito(PanelMinutos, 1, 0);
     DibujarDigito(PanelSegundos, 0, 0);
@@ -195,6 +182,9 @@ void actualizarPantalla(void *p)
     DibujarDigito(PanelDecimas, 0, 0);
 
     digitos_t digitosPrevios = {-1, -1, -1, -1, -1};
+    digitos_t parcialesPanel1 = {-1, -1, -1, -1, -1};
+    digitos_t parcialesPanel2 = {-1, -1, -1, -1, -1};
+    digitos_t parcialesPanel3 = {-1, -1, -1, -1, -1};
 
     while (1)
     {
@@ -202,36 +192,57 @@ void actualizarPantalla(void *p)
         {
             if (xSemaphoreTake(semaforoAccesoDigitos, portMAX_DELAY))
             {
-                digitos_t *digitosAMostrar = tiempoParcial ? &digitosParciales : &digitosActuales;
 
-                // Dibujar minutos
-                if (digitosAMostrar->decenasMinutos != digitosPrevios.decenasMinutos)
-                    DibujarDigito(PanelMinutos, 0, digitosAMostrar->decenasMinutos);
+                if (digitosActuales.decenasMinutos != digitosPrevios.decenasMinutos)
+                    DibujarDigito(PanelMinutos, 0, digitosActuales.decenasMinutos);
+                if (digitosActuales.unidadesMinutos != digitosPrevios.unidadesMinutos)
+                    DibujarDigito(PanelMinutos, 1, digitosActuales.unidadesMinutos);
+                if (digitosActuales.decenasSegundos != digitosPrevios.decenasSegundos)
+                    DibujarDigito(PanelSegundos, 0, digitosActuales.decenasSegundos);
+                if (digitosActuales.unidadesSegundos != digitosPrevios.unidadesSegundos)
+                    DibujarDigito(PanelSegundos, 1, digitosActuales.unidadesSegundos);
+                if (digitosActuales.decimasSegundo != digitosPrevios.decimasSegundo)
+                    DibujarDigito(PanelDecimas, 0, digitosActuales.decimasSegundo);
 
-                if (digitosAMostrar->unidadesMinutos != digitosPrevios.unidadesMinutos)
-                    DibujarDigito(PanelMinutos, 1, digitosAMostrar->unidadesMinutos);
+                digitosPrevios = digitosActuales;
 
-                // Dibujar segundos
-                if (digitosAMostrar->decenasSegundos != digitosPrevios.decenasSegundos)
-                    DibujarDigito(PanelSegundos, 0, digitosAMostrar->decenasSegundos);
+                digitos_t nuevoParcial;
+                if (xQueueReceive(colaDigitosParciales, &nuevoParcial, 0))
+                {
+                    parcialesPanel3 = parcialesPanel2;
+                    parcialesPanel2 = parcialesPanel1;
+                    parcialesPanel1 = nuevoParcial;
 
-                if (digitosAMostrar->unidadesSegundos != digitosPrevios.unidadesSegundos)
-                    DibujarDigito(PanelSegundos, 1, digitosAMostrar->unidadesSegundos);
+                    DibujarDigito(Panelparcial3Minutos, 0, parcialesPanel3.decenasMinutos);
+                    DibujarDigito(Panelparcial3Minutos, 1, parcialesPanel3.unidadesMinutos);
+                    DibujarDigito(Panelparcial3Segundos, 0, parcialesPanel3.decenasSegundos);
+                    DibujarDigito(Panelparcial3Segundos, 1, parcialesPanel3.unidadesSegundos);
+                    DibujarDigito(Panelparcial3Decimas, 0, parcialesPanel3.decimasSegundo);
 
-                // Dibujar décimas
-                if (digitosAMostrar->decimasSegundo != digitosPrevios.decimasSegundo)
-                    DibujarDigito(PanelDecimas, 0, digitosAMostrar->decimasSegundo);
+                    DibujarDigito(Panelparcial2Minutos, 0, parcialesPanel2.decenasMinutos);
+                    DibujarDigito(Panelparcial2Minutos, 1, parcialesPanel2.unidadesMinutos);
+                    DibujarDigito(Panelparcial2Segundos, 0, parcialesPanel2.decenasSegundos);
+                    DibujarDigito(Panelparcial2Segundos, 1, parcialesPanel2.unidadesSegundos);
+                    DibujarDigito(Panelparcial2Decimas, 0, parcialesPanel2.decimasSegundo);
 
-                digitosPrevios = *digitosAMostrar;
+                    DibujarDigito(Panelparcial1Minutos, 0, parcialesPanel1.decenasMinutos);
+                    DibujarDigito(Panelparcial1Minutos, 1, parcialesPanel1.unidadesMinutos);
+                    DibujarDigito(Panelparcial1Segundos, 0, parcialesPanel1.decenasSegundos);
+                    DibujarDigito(Panelparcial1Segundos, 1, parcialesPanel1.unidadesSegundos);
+                    DibujarDigito(Panelparcial1Decimas, 0, parcialesPanel1.decimasSegundo);
+                }
+
                 xSemaphoreGive(semaforoAccesoDigitos);
             }
         }
+
         vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(100));
     }
 }
 
 void app_main()
 {
+    colaDigitosParciales = xQueueCreate(3, sizeof(digitos_t));
     colaDigitos = xQueueCreate(5, sizeof(digitos_t));
     colaEstadosCronometro = xQueueCreate(5, sizeof(estadosCronometro_t));
     semaforoAccesoDigitos = xSemaphoreCreateMutex();

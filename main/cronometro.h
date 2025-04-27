@@ -13,7 +13,7 @@ typedef struct
 } digitos_t;
 
 extern digitos_t digitosActuales;
+extern digitos_t digitosParciales;
+void ActualizarCronometro(digitos_t *digitos);
 
-void ActualizarCronometro(void);
-
-#endif // CRONOMETRO_H
+#endif
