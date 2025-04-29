@@ -1,5 +1,6 @@
 /*
-
+Se implementa >>> TECLA 1: Inicio del cronometro - TECLA 2: Reset del cronometro si se presiona una vez, de los
+valores y tambien parciales si se mantiene presionado - TECLA 3: Captura de valores parciales (3 en total).
 */
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
